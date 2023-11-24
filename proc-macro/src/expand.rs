@@ -1,7 +1,6 @@
 use darling::ast::NestedMeta;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
-use syn::parse::Parser;
 use syn::{ExprLit, ItemFn, ReturnType};
 
 pub(crate) struct HasPermissions {
