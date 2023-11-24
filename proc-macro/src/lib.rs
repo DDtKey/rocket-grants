@@ -1,9 +1,11 @@
 extern crate proc_macro;
+use darling::ast::NestedMeta;
+use darling::FromMeta;
 use proc_macro::TokenStream;
 use quote::ToTokens;
-use syn::{parse_macro_input, AttributeArgs, ItemFn};
+use syn::{parse_macro_input, ItemFn};
 
-use crate::expand::HasPermissions;
+use crate::expand::{Args, HasPermissions};
 
 mod expand;
 
@@ -17,7 +19,7 @@ const HAS_ANY_ROLE: &str = "has_any_role";
 /// Allow to add a conditional restriction based on handlers parameters.
 /// Add the `secure` attribute followed by the the boolean expression to validate based on parameters
 ///
-/// Also you can use you own types instead of Strings, just add `type` attribute with path to type
+/// Also you can use you own types instead of Strings, just add `ty` attribute with path to type
 /// # Examples
 /// ```
 /// use rocket::serde::json::Json;
@@ -44,7 +46,7 @@ const HAS_ANY_ROLE: &str = "has_any_role";
 /// }
 ///
 /// // User must have MyPermissionEnum::OpGetSecret (you own enum example)
-/// #[rocket_grants::has_permissions("MyPermissionEnum::OpGetSecret", type = "MyPermissionEnum")]
+/// #[rocket_grants::has_permissions("MyPermissionEnum::OpGetSecret", ty = "MyPermissionEnum")]
 /// async fn macro_enum_secured() -> &'static str {
 ///     "some secured info"
 /// }
@@ -103,7 +105,19 @@ pub fn has_any_role(args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 fn check_permissions(check_fn_name: &str, args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(args as AttributeArgs);
+    let args = match NestedMeta::parse_meta_list(args.into()) {
+        Ok(v) => v,
+        Err(e) => {
+            return TokenStream::from(darling::Error::from(e).write_errors());
+        }
+    };
+    let args = match Args::from_list(&args) {
+        Ok(v) => v,
+        Err(e) => {
+            return TokenStream::from(e.write_errors());
+        }
+    };
+
     let func = parse_macro_input!(input as ItemFn);
 
     match HasPermissions::new(check_fn_name, args, func) {

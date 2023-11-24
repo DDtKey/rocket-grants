@@ -1,6 +1,8 @@
+use darling::ast::NestedMeta;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
-use syn::{AttributeArgs, ItemFn, NestedMeta, ReturnType};
+use syn::parse::Parser;
+use syn::{ExprLit, ItemFn, ReturnType};
 
 pub(crate) struct HasPermissions {
     check_fn: Ident,
@@ -9,10 +11,9 @@ pub(crate) struct HasPermissions {
 }
 
 impl HasPermissions {
-    pub fn new(check_fn: &str, args: AttributeArgs, func: ItemFn) -> syn::Result<Self> {
+    pub fn new(check_fn: &str, args: Args, func: ItemFn) -> syn::Result<Self> {
         let check_fn: Ident = syn::parse_str(check_fn)?;
 
-        let args = Args::new(args)?;
         if args.permissions.is_empty() {
             return Err(syn::Error::new(
                 Span::call_site(),
@@ -48,7 +49,7 @@ impl ToTokens for HasPermissions {
 
         let check_fn = &self.check_fn;
 
-        let args = if self.args.type_.is_some() {
+        let args = if self.args.ty.is_some() {
             let permissions: Vec<syn::Expr> = self
                 .args
                 .permissions
@@ -67,9 +68,9 @@ impl ToTokens for HasPermissions {
             }
         };
 
-        let type_ = self
+        let ty = self
             .args
-            .type_
+            .ty
             .as_ref()
             .map(|t| t.to_token_stream())
             .unwrap_or(quote! {String});
@@ -83,7 +84,7 @@ impl ToTokens for HasPermissions {
         let stream = quote! {
             #(#fn_attrs)*
             #func_vis #fn_async fn #fn_name #fn_generics(
-                _auth_details_: rocket_grants::permissions::AuthDetails<#type_>,
+                _auth_details_: rocket_grants::permissions::AuthDetails<#ty>,
                 #fn_args
             ) -> Result<#fn_output, rocket::http::Status> {
                 use rocket_grants::permissions::{PermissionsCheck, RolesCheck};
@@ -100,42 +101,47 @@ impl ToTokens for HasPermissions {
     }
 }
 
-struct Args {
+#[derive(Default)]
+pub(crate) struct Args {
     permissions: Vec<syn::LitStr>,
     secure: Option<syn::Expr>,
-    type_: Option<syn::Expr>,
+    ty: Option<syn::Expr>,
 }
 
-impl Args {
-    fn new(args: AttributeArgs) -> syn::Result<Self> {
-        let mut permissions = Vec::with_capacity(args.len());
+impl darling::FromMeta for Args {
+    fn from_list(items: &[NestedMeta]) -> darling::Result<Self> {
+        let mut permissions = Vec::new();
         let mut secure = None;
-        let mut type_ = None;
-        for arg in args {
-            match arg {
-                NestedMeta::Lit(syn::Lit::Str(lit)) => {
-                    permissions.push(lit);
-                }
+        let mut ty = None;
+
+        for item in items {
+            match item {
                 NestedMeta::Meta(syn::Meta::NameValue(syn::MetaNameValue {
                     path,
-                    lit: syn::Lit::Str(lit_str),
+                    value:
+                        syn::Expr::Lit(ExprLit {
+                            lit: syn::Lit::Str(lit_str),
+                            ..
+                        }),
                     ..
                 })) => {
                     if path.is_ident("secure") {
                         let expr = lit_str.parse().unwrap();
                         secure = Some(expr);
-                    } else if path.is_ident("type") {
+                    } else if path.is_ident("ty") {
                         let expr = lit_str.parse().unwrap();
-                        type_ = Some(expr);
+                        ty = Some(expr);
                     } else {
-                        return Err(syn::Error::new_spanned(
-                            path,
-                            "Unknown identifier. Available: 'secure' and 'type'",
-                        ));
+                        return Err(darling::Error::unknown_field_path(path));
                     }
                 }
+                NestedMeta::Lit(syn::Lit::Str(lit)) => {
+                    permissions.push(lit.clone());
+                }
                 _ => {
-                    return Err(syn::Error::new_spanned(arg, "Unknown attribute."));
+                    return Err(darling::Error::custom(
+                        "Unknown attribute, available: 'secure', 'ty' & string literal",
+                    ))
                 }
             }
         }
@@ -143,7 +149,7 @@ impl Args {
         Ok(Args {
             permissions,
             secure,
-            type_,
+            ty,
         })
     }
 }
