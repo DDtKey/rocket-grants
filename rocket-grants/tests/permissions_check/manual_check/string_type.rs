@@ -47,7 +47,9 @@ async fn test_forbidden() {
 async fn get_client() -> Client {
     let app = rocket::build()
         .mount("/", rocket::routes![different_body, only_admin])
-        .attach(GrantsFairing::with_extractor_fn(|req| Box::pin(common::extract(req))));
+        .attach(GrantsFairing::with_extractor_fn(|req| {
+            Box::pin(common::extract(req))
+        }));
     Client::untracked(app).await.unwrap()
 }
 async fn get_user_response<'a>(

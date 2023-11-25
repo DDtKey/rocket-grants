@@ -39,13 +39,12 @@ impl ToTokens for HasPermissions {
         let fn_generics = &fn_sig.generics;
         let fn_args = &fn_sig.inputs;
         let fn_async = &fn_sig.asyncness.unwrap();
-        let fn_output =
-            match &fn_sig.output {
-                ReturnType::Type(ref _arrow, ref ty) => ty.to_token_stream(),
-                ReturnType::Default => {
-                    quote! {()}
-                }
-            };
+        let fn_output = match &fn_sig.output {
+            ReturnType::Type(ref _arrow, ref ty) => ty.to_token_stream(),
+            ReturnType::Default => {
+                quote! {()}
+            }
+        };
 
         let check_fn = &self.check_fn;
 
