@@ -53,7 +53,7 @@ pub use fairing::GrantsFairing;
 /// struct User { id: i32 }
 ///
 /// // You own type is also supported (need to configure fairing for this type as well):
-/// #[rocket_grants::protect(any("Role::Admin", "Role::Manager"), ty = "Role")]
+/// #[rocket_grants::protect(any("Role::Admin", "Role::Manager"), ty = Role)]
 /// #[rocket::get("/enum")]
 /// async fn role_enum_macro_secured() -> &'static str {
 ///    "some secured info"

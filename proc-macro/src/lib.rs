@@ -40,7 +40,7 @@ mod expand;
 /// }
 ///
 /// // User must have MyPermissionEnum::OpGetSecret (you own enum example)
-/// #[rocket_grants::protect("MyPermissionEnum::OpGetSecret", ty = "MyPermissionEnum")]
+/// #[rocket_grants::protect("MyPermissionEnum::OpGetSecret", ty = MyPermissionEnum)]
 /// async fn macro_enum_secured() -> &'static str {
 ///     "some secured info"
 /// }
