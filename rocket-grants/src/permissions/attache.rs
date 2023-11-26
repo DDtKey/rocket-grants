@@ -10,9 +10,10 @@ use std::hash::Hash;
 ///
 /// ```
 /// use rocket_grants::permissions::AttachPermissions;
+/// use std::collections::HashSet;
 ///
 /// // You can use you own type/enum instead of `String`
-/// fn attach(mut req: &mut rocket::Request, permissions: Option<Vec<String>>) {
+/// fn attach(mut req: &mut rocket::Request, permissions: Option<HashSet<String>>) {
 ///     req.attach(permissions);
 /// }
 ///
