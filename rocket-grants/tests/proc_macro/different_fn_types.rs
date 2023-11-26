@@ -23,7 +23,7 @@ struct User {
     id: i32,
 }
 
-#[protect("ROLE_ADMIN", secure = "user_id == user.id")]
+#[protect("ROLE_ADMIN", expr = "user_id == user.id")]
 #[rocket::post("/secure/<user_id>", data = "<user>")]
 async fn secure_user_id(user_id: i32, user: Json<User>) -> &'static str {
     "Hi!"
@@ -114,9 +114,7 @@ fn unauthorized_catcher() -> String {
 async fn test_custom_error() {
     let app = rocket::build()
         .mount("/", rocket::routes![str_response])
-        .attach(GrantsFairing::with_extractor_fn(|req| {
-            Box::pin(common::extract(req))
-        }))
+        .attach(GrantsFairing::with_extractor_fn(|req| Box::pin(common::extract(req))))
         .register(
             "/",
             rocket::catchers!(forbidden_catcher, unauthorized_catcher),
@@ -147,9 +145,7 @@ async fn get_client() -> Client {
                 secure_user_id,
             ],
         )
-        .attach(GrantsFairing::with_extractor_fn(|req| {
-            Box::pin(common::extract(req))
-        }));
+        .attach(GrantsFairing::with_extractor_fn(|req| Box::pin(common::extract(req))));
     Client::untracked(app).await.unwrap()
 }
 

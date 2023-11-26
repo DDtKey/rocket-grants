@@ -67,7 +67,7 @@ Take a look at an [enum-role example](../examples/enum-role/src/main.rs)
 use enums::Role::{self, ADMIN};
 use dto::User;
 
-#[rocket_grants::protect("USER", secure = "user_id == user.id")]
+#[rocket_grants::protect("USER", expr = "user_id == user.id")]
 #[rocket::post("/secure/<user_id>", data = "<user>")]
 async fn role_macro_secured_with_params(user_id: i32, user: Json<User>) -> &'static str {
    "some secured info with parameters"

@@ -10,6 +10,7 @@ const AUTH_DETAILS: &str = "_auth_details_";
 enum Condition {
     Any(Conditions),
     All(Conditions),
+    Expr(syn::Expr),
     Value(syn::LitStr),
 }
 
@@ -19,12 +20,10 @@ struct Conditions(Vec<Condition>);
 #[derive(Debug)]
 pub(crate) struct Args {
     cond: Condition,
-    secure: Option<syn::Expr>,
     ty: Option<syn::Expr>,
 }
 
 pub(crate) struct ProtectEndpoint {
-    // check_fn: Ident,
     func: ItemFn,
     args: Args,
 }
@@ -46,12 +45,13 @@ impl ToTokens for ProtectEndpoint {
         let fn_generics = &fn_sig.generics;
         let fn_args = &fn_sig.inputs;
         let fn_async = &fn_sig.asyncness.unwrap();
-        let fn_output = match &fn_sig.output {
-            ReturnType::Type(ref _arrow, ref ty) => ty.to_token_stream(),
-            ReturnType::Default => {
-                quote! {()}
-            }
-        };
+        let fn_output =
+            match &fn_sig.output {
+                ReturnType::Type(ref _arrow, ref ty) => ty.to_token_stream(),
+                ReturnType::Default => {
+                    quote! {()}
+                }
+            };
 
         let condition = self.args.cond.to_tokens(self.args.ty.is_some());
 
@@ -62,11 +62,7 @@ impl ToTokens for ProtectEndpoint {
             .map(syn::Expr::to_token_stream)
             .unwrap_or(quote! {String});
 
-        let condition = if let Some(expr) = &self.args.secure {
-            quote!(if #condition && #expr)
-        } else {
-            quote!(if #condition)
-        };
+        let condition = quote!(if #condition);
         let auth_details: Ident = Ident::new(AUTH_DETAILS, Span::call_site());
 
         let stream = quote! {
@@ -142,6 +138,9 @@ impl Condition {
                     quote! { #auth_details.has_authority(#val) }
                 }
             }
+            Condition::Expr(expr) => {
+                quote! { #expr }
+            }
         }
     }
 
@@ -162,10 +161,14 @@ impl darling::FromMeta for Condition {
                     "all" => Ok(Condition::All(
                         darling::FromMeta::from_meta(meta).map_err(|e| e.at("all"))?,
                     )),
-                    other => Err(
-                        darling::Error::unknown_field_with_alts(other, &["any", "all"])
-                            .with_span(meta),
-                    ),
+                    "expr" => Ok(Condition::Expr(
+                        darling::FromMeta::from_meta(meta).map_err(|e| e.at("expr"))?,
+                    )),
+                    other => Err(darling::Error::unknown_field_with_alts(
+                        other,
+                        &["any", "all", "expr"],
+                    )
+                    .with_span(meta)),
                 }
             }
             [NestedMeta::Lit(ref lit)] => Ok(Condition::Value(darling::FromMeta::from_value(lit)?)),
@@ -196,7 +199,6 @@ impl darling::FromMeta for Conditions {
 impl darling::FromMeta for Args {
     fn from_list(items: &[NestedMeta]) -> darling::Result<Self> {
         let mut conditions = Vec::new();
-        let mut secure = None;
         let mut ty = None;
 
         let mut errors = ::darling::Error::accumulator();
@@ -204,17 +206,18 @@ impl darling::FromMeta for Args {
         for item in items {
             match item {
                 NestedMeta::Meta(Meta::NameValue(syn::MetaNameValue { path, value, .. })) => {
-                    if path.is_ident("secure") {
-                        if secure.is_some() {
-                            errors.push(darling::Error::duplicate_field("secure"));
-                        } else {
-                            secure = errors.handle(darling::FromMeta::from_expr(value));
-                        }
-                    } else if path.is_ident("ty") {
+                    if path.is_ident("ty") {
                         if ty.is_some() {
                             errors.push(darling::Error::duplicate_field("ty"));
                         } else {
                             ty = errors.handle(darling::FromMeta::from_expr(value));
+                        }
+                    } else if path.is_ident("expr") {
+                        let cond = errors
+                            .handle(darling::FromMeta::from_expr(value))
+                            .map(Condition::Expr);
+                        if let Some(cond) = cond {
+                            conditions.push(cond);
                         }
                     } else {
                         errors.push(darling::Error::unknown_field_path(path));
@@ -227,19 +230,22 @@ impl darling::FromMeta for Args {
                         conditions.push(cond);
                     }
                 }
-                NestedMeta::Lit(syn::Lit::Str(lit)) => {
-                    conditions.push(Condition::Value(lit.clone()));
+                NestedMeta::Lit(lit) => {
+                    let cond = errors
+                        .handle(darling::FromMeta::from_value(lit))
+                        .map(Condition::Value);
+                    if let Some(cond) = cond {
+                        conditions.push(cond);
+                    }
                 }
                 _ => errors.push(darling::Error::custom(
-                    "Unknown attribute, available: 'secure', 'ty', `all`, `any` and string literals",
+                    "Unknown attribute, available: 'ty', `all`, `any`, `expr` and string literals",
                 )),
             }
         }
 
         if conditions.is_empty() {
-            errors.push(darling::Error::custom(
-                "At least one condition must be specified",
-            ));
+            errors.push(darling::Error::custom("At least one condition must be specified"));
         }
 
         errors.finish()?;
@@ -250,7 +256,7 @@ impl darling::FromMeta for Args {
             Condition::All(Conditions(conditions))
         };
 
-        Ok(Args { cond, secure, ty })
+        Ok(Args { cond, ty })
     }
 }
 
