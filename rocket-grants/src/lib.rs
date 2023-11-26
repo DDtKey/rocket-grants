@@ -34,7 +34,7 @@ pub use fairing::GrantsFairing;
 ///    "some secured info"
 /// }
 ///
-/// // Role - is permission with prefix "ROLE_".
+/// // Role - is string with prefix "ROLE_".
 /// // User should be ADMIN and MANAGER
 /// #[rocket_grants::has_roles["ADMIN", "MANAGER"]]
 /// #[rocket::get("/role")]

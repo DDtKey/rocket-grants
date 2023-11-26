@@ -6,13 +6,13 @@ use rocket::serde::json::Json;
 use rocket_grants::{has_roles, GrantsFairing};
 use serde::{Deserialize, Serialize};
 
-#[has_roles("ADMIN")]
+#[has_roles(cond("ADMIN"))]
 #[rocket::get("/http_response")]
 async fn http_response() -> Status {
     Status::Ok
 }
 
-#[has_roles("ADMIN")]
+#[has_roles(cond(all(any("ADMIN", "MANAGER"), "USER")))]
 #[rocket::get("/str")]
 async fn str_response() -> &'static str {
     "Hi!"
@@ -23,19 +23,19 @@ struct User {
     id: i32,
 }
 
-#[has_roles("ADMIN", secure = "user_id == user.id")]
+#[has_roles(cond("ADMIN"), secure = "user_id == user.id")]
 #[rocket::post("/secure/<user_id>", data = "<user>")]
 async fn secure_user_id(user_id: i32, user: Json<User>) -> &'static str {
     "Hi!"
 }
 
-#[has_roles("ADMIN")]
+#[has_roles(cond("ADMIN"))]
 #[rocket::get("/return")]
 async fn return_response() -> &'static str {
     return "Hi!";
 }
 
-#[has_roles("ADMIN")]
+#[has_roles(cond("ADMIN"))]
 #[rocket::get("/result?<name>")]
 async fn result_response(name: Option<String>) -> Result<String, Status> {
     let name = name.as_ref().ok_or(Status::MethodNotAllowed)?;
@@ -114,9 +114,7 @@ fn unauthorized_catcher() -> String {
 async fn test_custom_error() {
     let app = rocket::build()
         .mount("/", rocket::routes![str_response])
-        .attach(GrantsFairing::with_extractor_fn(|req| {
-            Box::pin(common::extract(req))
-        }))
+        .attach(GrantsFairing::with_extractor_fn(|req| Box::pin(common::extract(req))))
         .register(
             "/",
             rocket::catchers!(forbidden_catcher, unauthorized_catcher),
@@ -147,9 +145,7 @@ async fn get_client() -> Client {
                 secure_user_id,
             ],
         )
-        .attach(GrantsFairing::with_extractor_fn(|req| {
-            Box::pin(common::extract(req))
-        }));
+        .attach(GrantsFairing::with_extractor_fn(|req| Box::pin(common::extract(req))));
     Client::untracked(app).await.unwrap()
 }
 

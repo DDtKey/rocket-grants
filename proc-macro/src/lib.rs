@@ -5,7 +5,7 @@ use proc_macro::TokenStream;
 use quote::ToTokens;
 use syn::{parse_macro_input, ItemFn};
 
-use crate::expand::{Args, HasPermissions};
+use crate::expand::{Args, ProtectEndpoint};
 
 mod expand;
 
@@ -73,7 +73,7 @@ pub fn has_any_permission(args: TokenStream, input: TokenStream) -> TokenStream 
 }
 
 /// Macro to сheck that the user has all the specified roles.
-/// Role - is permission with prefix "ROLE_" or your own custom type.
+/// Role - is string with prefix "ROLE_" or your own custom type.
 ///
 /// # Examples
 /// ```
@@ -89,7 +89,7 @@ pub fn has_roles(args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 /// Macro to сheck that the user has any the specified roles.
-/// Role - is permission with prefix "ROLE_" or your own custom type.
+/// Role - is string with prefix "ROLE_" or your own custom type.
 ///
 /// # Examples
 /// ```
@@ -120,7 +120,7 @@ fn check_permissions(check_fn_name: &str, args: TokenStream, input: TokenStream)
 
     let func = parse_macro_input!(input as ItemFn);
 
-    match HasPermissions::new(check_fn_name, args, func) {
+    match ProtectEndpoint::new(check_fn_name, args, func) {
         Ok(has_permissions) => has_permissions.into_token_stream().into(),
         Err(err) => err.to_compile_error().into(),
     }
