@@ -45,13 +45,12 @@ impl ToTokens for ProtectEndpoint {
         let fn_generics = &fn_sig.generics;
         let fn_args = &fn_sig.inputs;
         let fn_async = &fn_sig.asyncness.unwrap();
-        let fn_output =
-            match &fn_sig.output {
-                ReturnType::Type(ref _arrow, ref ty) => ty.to_token_stream(),
-                ReturnType::Default => {
-                    quote! {()}
-                }
-            };
+        let fn_output = match &fn_sig.output {
+            ReturnType::Type(ref _arrow, ref ty) => ty.to_token_stream(),
+            ReturnType::Default => {
+                quote! {()}
+            }
+        };
 
         let condition = self.args.cond.to_tokens(self.args.ty.is_some());
 
@@ -245,7 +244,9 @@ impl darling::FromMeta for Args {
         }
 
         if conditions.is_empty() {
-            errors.push(darling::Error::custom("At least one condition must be specified"));
+            errors.push(darling::Error::custom(
+                "At least one condition must be specified",
+            ));
         }
 
         errors.finish()?;
