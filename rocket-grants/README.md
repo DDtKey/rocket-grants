@@ -13,7 +13,7 @@
 [![dependency status](https://deps.rs/repo/github/DDtKey/rocket-grants/status.svg)](https://deps.rs/repo/github/DDtKey/rocket-grants)
 ![Apache 2.0 or MIT licensed](https://img.shields.io/crates/l/rocket-grants)
 
-To check user access to specific services, you can use built-in `proc-macro`, `PermissionGuard` or manual.
+To check user access to specific services, you can use built-in `proc-macro` or do it manually.
 
 Provides a complete analogue of the [`actix-web-grants`] and [`poem-grants`].
 
@@ -60,7 +60,7 @@ Here is an example using the `ty` and `secure` attributes. But these are indepen
 
 `secure` allows you to include some checks in the macro based on function params.
 
-`ty` allows you to use a custom type for the roles and permissions (then the fairing needs to be configured). 
+`ty` allows you to use a custom type for the authority (then the fairing needs to be configured). 
 Take a look at an [enum-role example](../examples/enum-role/src/main.rs)
 
 ```rust,ignore
@@ -78,11 +78,11 @@ async fn role_macro_secured_with_params(user_id: i32, user: Json<User>) -> &'sta
 
 ### Example of manual way protection
 ```rust,no_run
-use rocket_grants::permissions::{AuthDetails, PermissionsCheck};
+use rocket_grants::authorities::{AuthDetails, AuthoritiesCheck};
 
 #[rocket::get("/")]
 async fn manual_secure(details: AuthDetails) -> &'static str {
-    if details.has_permission("ROLE_ADMIN") {
+    if details.has_authority("ROLE_ADMIN") {
         return "ADMIN_RESPONSE"
     }
     "OTHER_RESPONSE"
