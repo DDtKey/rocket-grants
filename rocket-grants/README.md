@@ -4,7 +4,7 @@
     <img alt="rocket-grants" src="https://github.com/DDtKey/rocket-grants/raw/main/logo.png">
 </p>
 
-> Extension for [`rocket`] to validate user permissions.
+> Extension for [`rocket`] to authorize requests.
 
 [![CI](https://github.com/DDtKey/rocket-grants/workflows/CI/badge.svg)](https://github.com/DDtKey/rocket-grants/actions)
 [![Crates.io Downloads Badge](https://img.shields.io/crates/d/rocket-grants)](https://crates.io/crates/rocket-grants)
@@ -13,14 +13,14 @@
 [![dependency status](https://deps.rs/repo/github/DDtKey/rocket-grants/status.svg)](https://deps.rs/repo/github/DDtKey/rocket-grants)
 ![Apache 2.0 or MIT licensed](https://img.shields.io/crates/l/rocket-grants)
 
-To check user access to specific services, you can use built-in `proc-macro` or do it manually.
+To check user access to specific endpoints, you can use built-in `proc-macro` or do it manually.
 
 Provides a complete analogue of the [`actix-web-grants`] and [`poem-grants`].
 
 ## How to use
 
 
-1. Declare your own permission extraction function
+1. Declare your own authorities extraction function
    
 The easiest way is to declare a function with the following signature:
 ```rust,ignore
@@ -33,7 +33,7 @@ async fn extract(req: &rocket::Request<'_>) -> Option<HashSet<String>>
 ```rust,ignore
     rocket::build().mount("/api", rocket::routes![endpoint])
          .attach(GrantsFairing::with_extractor_fn(|req| {
-             Box::pin(extract(req)) // example with a separate async function, but you can write a closure right here
+             Box::pin(extract(req)) // example with a separate async function `extract`, but you can write a closure right here
          }))
 ```
 
@@ -103,7 +103,7 @@ You can set up custom responses for:
 
 
 ## Supported `rocket` versions
-* For `rocket-grants: 0.5.*` supported version of `rocket` is `0.5.*`
+* For `rocket-grants: 0.1.*` supported version of `rocket` is `0.5.*`
 
 [`rocket`]: https://github.com/SergioBenitez/Rocket
 [`examples`]: https://github.com/DDtKey/rocket-grants/tree/main/examples
