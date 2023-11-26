@@ -11,7 +11,7 @@ mod expand;
 
 /// Macro to сheck that the user has all the specified permissions.
 /// Allow to add a conditional restriction based on handlers parameters.
-/// Add the `secure` attribute followed by the the boolean expression to validate based on parameters
+/// Add the `expr` attribute followed by the the boolean expression to validate based on parameters
 ///
 /// Also you can use you own types instead of Strings, just add `ty` attribute with path to type
 /// # Examples
