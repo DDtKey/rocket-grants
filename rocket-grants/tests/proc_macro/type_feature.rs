@@ -5,24 +5,24 @@ use crate::common::{
 use rocket::http::hyper::header::AUTHORIZATION;
 use rocket::http::{Header, Status};
 use rocket::local::asynchronous::{Client, LocalResponse};
-use rocket_grants::{has_roles, GrantsFairing};
+use rocket_grants::{protect, GrantsFairing};
 
 // Using imported custom type (in `use` section)
-#[has_roles("Admin", ty = "Role")]
+#[protect("Admin", ty = "Role")]
 #[rocket::get("/imported_enum_secure")]
 async fn imported_path_enum_secure() -> Status {
     Status::Ok
 }
 
 // Using a full path to a custom type (enum)
-#[has_roles("crate::common::Role::Admin", ty = "crate::common::Role")]
+#[protect("crate::common::Role::Admin", ty = "crate::common::Role")]
 #[rocket::get("/full_path_enum_secure")]
 async fn full_path_enum_secure() -> Status {
     Status::Ok
 }
 
 // Incorrect endpoint security without Type specification
-#[has_roles("ADMIN")]
+#[protect("ADMIN")]
 #[rocket::get("/incorrect_enum_secure")]
 async fn incorrect_enum_secure() -> Status {
     Status::Ok
@@ -67,7 +67,9 @@ async fn get_client() -> Client {
                 incorrect_enum_secure,
             ],
         )
-        .attach(GrantsFairing::with_extractor_fn(|req| Box::pin(common::enum_extract(req))));
+        .attach(GrantsFairing::with_extractor_fn(|req| {
+            Box::pin(common::enum_extract(req))
+        }));
     Client::untracked(app).await.unwrap()
 }
 async fn get_user_response<'a>(

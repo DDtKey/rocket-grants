@@ -30,9 +30,7 @@ pub(crate) struct ProtectEndpoint {
 }
 
 impl ProtectEndpoint {
-    pub fn new(_check_fn: &str, args: Args, func: ItemFn) -> syn::Result<Self> {
-        // let check_fn: Ident = syn::parse_str(check_fn)?;
-
+    pub fn new(args: Args, func: ItemFn) -> syn::Result<Self> {
         Ok(Self { func, args })
     }
 }
@@ -48,13 +46,12 @@ impl ToTokens for ProtectEndpoint {
         let fn_generics = &fn_sig.generics;
         let fn_args = &fn_sig.inputs;
         let fn_async = &fn_sig.asyncness.unwrap();
-        let fn_output =
-            match &fn_sig.output {
-                ReturnType::Type(ref _arrow, ref ty) => ty.to_token_stream(),
-                ReturnType::Default => {
-                    quote! {()}
-                }
-            };
+        let fn_output = match &fn_sig.output {
+            ReturnType::Type(ref _arrow, ref ty) => ty.to_token_stream(),
+            ReturnType::Default => {
+                quote! {()}
+            }
+        };
 
         let condition = self.args.cond.to_tokens(self.args.ty.is_some());
 
@@ -107,7 +104,7 @@ impl Condition {
                     let vals: Vec<syn::Expr> =
                         vals.map(syn::LitStr::parse).map(Result::unwrap).collect();
 
-                    quote! { #auth_details.has_any_permission(&[#(#vals,)*]) }
+                    quote! { #auth_details.has_any_permission(&[#(&#vals,)*]) }
                 } else {
                     quote! { #auth_details.has_any_permission(&[#(#vals,)*]) }
                 }
@@ -122,7 +119,7 @@ impl Condition {
                     let vals: Vec<syn::Expr> =
                         vals.map(syn::LitStr::parse).map(Result::unwrap).collect();
 
-                    quote! { #auth_details.has_permissions(&[#(#vals,)*]) }
+                    quote! { #auth_details.has_permissions(&[#(&#vals,)*]) }
                 } else {
                     quote! { #auth_details.has_permissions(&[#(#vals,)*]) }
                 }
@@ -240,7 +237,9 @@ impl darling::FromMeta for Args {
         }
 
         if conditions.is_empty() {
-            errors.push(darling::Error::custom("At least one condition must be specified"));
+            errors.push(darling::Error::custom(
+                "At least one condition must be specified",
+            ));
         }
 
         errors.finish()?;
