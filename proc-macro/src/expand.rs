@@ -2,7 +2,7 @@ use darling::ast::NestedMeta;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
 use std::ops::Deref;
-use syn::{ItemFn, ReturnType};
+use syn::{ItemFn, Meta, ReturnType};
 
 const AUTH_DETAILS: &str = "_auth_details_";
 
@@ -16,7 +16,7 @@ enum Condition {
 #[derive(Debug)]
 struct Conditions(Vec<Condition>);
 
-#[derive(Debug, darling::FromMeta)]
+#[derive(Debug)]
 pub(crate) struct Args {
     cond: Condition,
     secure: Option<syn::Expr>,
@@ -193,6 +193,65 @@ impl darling::FromMeta for Conditions {
         }
 
         Ok(Conditions(expressions))
+    }
+}
+
+impl darling::FromMeta for Args {
+    fn from_list(items: &[NestedMeta]) -> darling::Result<Self> {
+        let mut conditions = Vec::new();
+        let mut secure = None;
+        let mut ty = None;
+
+        let mut errors = ::darling::Error::accumulator();
+
+        for item in items {
+            match item {
+                NestedMeta::Meta(Meta::NameValue(syn::MetaNameValue { path, value, .. })) => {
+                    if path.is_ident("secure") {
+                        if secure.is_some() {
+                            errors.push(darling::Error::duplicate_field("secure"));
+                        } else {
+                            secure = errors.handle(darling::FromMeta::from_expr(value));
+                        }
+                    } else if path.is_ident("ty") {
+                        if ty.is_some() {
+                            errors.push(darling::Error::duplicate_field("ty"));
+                        } else {
+                            ty = errors.handle(darling::FromMeta::from_expr(value));
+                        }
+                    } else {
+                        errors.push(darling::Error::unknown_field_path(path));
+                    }
+                }
+                // List may mean either `any` or `all` conditions, so we should try to parse it
+                NestedMeta::Meta(Meta::List(_)) => {
+                    let cond = errors.handle(darling::FromMeta::from_list(&[item.clone()]));
+                    if let Some(cond) = cond {
+                        conditions.push(cond);
+                    }
+                }
+                NestedMeta::Lit(syn::Lit::Str(lit)) => {
+                    conditions.push(Condition::Value(lit.clone()));
+                }
+                _ => errors.push(darling::Error::custom(
+                    "Unknown attribute, available: 'secure', 'ty', `all`, `any` and string literals",
+                )),
+            }
+        }
+
+        if conditions.is_empty() {
+            errors.push(darling::Error::custom("At least one condition must be specified"));
+        }
+
+        errors.finish()?;
+
+        let cond = if conditions.len() == 1 {
+            conditions.pop().unwrap()
+        } else {
+            Condition::All(Conditions(conditions))
+        };
+
+        Ok(Args { cond, secure, ty })
     }
 }
 
